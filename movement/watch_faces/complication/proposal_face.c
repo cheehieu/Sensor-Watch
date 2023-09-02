@@ -27,23 +27,61 @@
 #include "proposal_face.h"
 
 #define PROPOSAL_WATCHFACE_TITLE "  "
-#define PROPOSAL_ANIMATION_TICK_FREQUENCY 8
-#define WORD_LOVERS "Lovers"
-#define WORD_DEATH "Death"
+#define ANIMATION_TICK_FREQ_NAME 2
+#define ANIMATION_TICK_FREQ_PROPOSAL 0.5
+#define ANIMATION_TICK_FREQ_RESPONSE 2
+#define ANIMATION_TICK_FREQ_REACTION 1
+#define MAX_NAME_COUNT 3
+#define STATE_NAME 0
+#define STATE_PROPOSAL 1
+#define STATE_RESPONSE 2
+#define STATE_REACTION 3
+
+#define WORD_DEATH " Death"
 #define WORD_EGGHEAD "EggHed"
 #define WORD_HIEU " HiEU "
+#define WORD_LOVERS "Lovers"
+#define WORD_VY "  vy  "
 
-static char proposal_words[][7] = {
-    "  vy  ",
+// TODO: For some reason, switching between words[] drops the first frame... so adding an extra one to compensate
+
+static char words_name[][7] = {
     "vy    ",
-    "W  LL ", // W is only top half left, complete with watch_set_pixel()
+    WORD_VY,
+};
+
+static char words_proposal[][7] = {
+    "W  LL ", // W is only top half left -> complete with watch_set_pixel()
+    "W  LL ",
     "   You",
     "n&arry",
     "n&E ? ",
+};
+
+static char words_response[][7] = {
+    " Y  no",
     " Y  no",
 };
 
-#define NUM_PROPOSAL_WORDS (sizeof(proposal_words) / sizeof(*proposal_words))
+static char words_reaction_yes[][7] = {
+    WORD_LOVERS, // with GREEN light
+    WORD_LOVERS,
+    WORD_HIEU,
+    WORD_VY,
+};
+
+static char words_reaction_no[][7] = {
+    WORD_DEATH, // with RED light
+    WORD_DEATH,
+    "  2   ",
+    WORD_EGGHEAD,
+};
+
+#define NUM_WORDS_NAME (sizeof(words_name) / sizeof(*words_name))
+#define NUM_WORDS_PROPOSAL (sizeof(words_proposal) / sizeof(*words_proposal))
+#define NUM_WORDS_RESPONSE (sizeof(words_response) / sizeof(*words_response))
+#define NUM_WORDS_REACTION_Y (sizeof(words_reaction_yes) / sizeof(*words_reaction_yes))
+#define NUM_WORDS_REACTION_N (sizeof(words_reaction_no) / sizeof(*words_reaction_no))
 
 void proposal_face_setup(movement_settings_t *settings, uint8_t watch_face_index, void ** context_ptr) {
     (void) settings;
@@ -61,16 +99,41 @@ void proposal_face_activate(movement_settings_t *settings, void *context) {
 
     // Handle any tasks related to your watch face coming on screen.
     // watch_display_string(PROPOSAL_WATCHFACE_TITLE, 0);
+    movement_request_tick_frequency(ANIMATION_TICK_FREQ_NAME);
+    state->state = 0;
     state->word_index = 0;
+    state->name_count = 0;
+    state->proposal_response = false;
 }
 
 static void _proposal_face_update_lcd(proposal_state_t *state) {
     char buf[11];
-    sprintf(buf, "    %s", proposal_words[state->word_index]);
+    switch (state->state) {
+        case STATE_NAME:
+            sprintf(buf, "    %s", words_name[state->word_index]);
+            break;
+        case STATE_PROPOSAL:
+            sprintf(buf, "    %s", words_proposal[state->word_index]);
+            break;
+        case STATE_RESPONSE:
+            sprintf(buf, "    %s", words_response[state->word_index]);
+            break;
+        case STATE_REACTION:
+            if (state->proposal_response) {
+                sprintf(buf, "    %s", words_reaction_yes[state->word_index]);
+            } else {
+                sprintf(buf, "    %s", words_reaction_no[state->word_index]);
+            }
+            break;
+        default:
+            sprintf(buf, "    %s", words_name[state->word_index]);
+            break;
+    }
+
     watch_display_string(buf, 0);
 
-    // Modify display string with extra segments
-    if (state->word_index == 2) {
+    // Modify display string with extra segments for "WiLL"
+    if (state->state == STATE_PROPOSAL && state->word_index < 2) {
         watch_set_pixel(1, 20); // partial upper right half of W
         watch_set_pixel(2, 21); // partial upper right half of W
         watch_set_pixel(1, 22); // i
@@ -93,22 +156,96 @@ bool proposal_face_loop(movement_event_t event, movement_settings_t *settings, v
             //     else if (state->color == 1) watch_set_led_green();
             //     else watch_set_led_yellow();
             // }
+
+            // State management
+            switch (state->state) {
+                case STATE_NAME:
+                    if (state->name_count < MAX_NAME_COUNT) {
+                        state->word_index = (state->word_index + 1) % NUM_WORDS_NAME;
+                        _proposal_face_update_lcd(state);
+
+                        if (state->word_index == NUM_WORDS_NAME - 1) {
+                            state->name_count++;
+                        }
+                    } else {
+                        movement_request_tick_frequency(ANIMATION_TICK_FREQ_PROPOSAL);
+                        state->state = STATE_PROPOSAL;
+                        state->word_index = 0;
+                    }
+                    break;
+                case STATE_PROPOSAL:
+                    if (state->word_index < NUM_WORDS_PROPOSAL - 1) {
+                        state->word_index = (state->word_index + 1) % NUM_WORDS_PROPOSAL;
+                        _proposal_face_update_lcd(state);
+                    } else {
+                        movement_request_tick_frequency(ANIMATION_TICK_FREQ_RESPONSE);
+                        state->state = STATE_RESPONSE;
+                        state->word_index = 0;
+                    }
+                    break;
+                case STATE_RESPONSE:
+                    state->word_index = (state->word_index + 1) % NUM_WORDS_RESPONSE;
+                    _proposal_face_update_lcd(state);
+
+                    // Toggle bell indicator
+                    if (state->word_index == 0) {
+                        watch_set_indicator(WATCH_INDICATOR_BELL);
+                    } else {
+                        watch_clear_indicator(WATCH_INDICATOR_BELL);
+                    }
+                    break;
+                case STATE_REACTION:
+                    if (state->proposal_response) {
+                        state->word_index = (state->word_index + 1) % NUM_WORDS_REACTION_Y;
+                        watch_set_led_green();
+                    } else {
+                        state->word_index = (state->word_index + 1) % NUM_WORDS_REACTION_N;
+                        watch_set_led_red();
+                    }
+                    _proposal_face_update_lcd(state);
+
+                    // Blink LED
+                    // TODO: trigger quick blinking like a beacon and get red to work
+                    if (state->word_index % 2 == 0) {
+                        movement_illuminate_led();
+                    } else {
+                        watch_set_led_off();
+                    }
+                    
+                    break;
+                default:
+                    break;
+            }
             break;
-        case EVENT_LIGHT_BUTTON_UP:
-            break;
-        case EVENT_LIGHT_LONG_PRESS:
+        case EVENT_LIGHT_BUTTON_DOWN:
             // You can use the Light button for your own purposes. Note that by default, Movement will also
             // illuminate the LED in response to EVENT_LIGHT_BUTTON_DOWN; to suppress that behavior, add an
             // empty case for EVENT_LIGHT_BUTTON_DOWN.
-            state->word_index = (state->word_index - 1) % NUM_PROPOSAL_WORDS;
-            _proposal_face_update_lcd(state);
+
+            // Only functional for YES response
+            if (state->state == STATE_RESPONSE) {
+                state->proposal_response = true;
+                movement_request_tick_frequency(ANIMATION_TICK_FREQ_REACTION);
+                state->state = STATE_REACTION;
+                state->word_index = 0;
+            }
             break;
-        case EVENT_ALARM_BUTTON_UP:
-            // Just in case you have need for another button.
-            state->word_index = (state->word_index + 1) % NUM_PROPOSAL_WORDS;
-            _proposal_face_update_lcd(state);
+        case EVENT_ALARM_BUTTON_DOWN:
+            // Only functional for NO response
+            if (state->state == STATE_RESPONSE) {
+                state->proposal_response = false;
+                movement_request_tick_frequency(ANIMATION_TICK_FREQ_REACTION);
+                state->state = STATE_REACTION;
+                state->word_index = 0;
+            }
             break;
         case EVENT_ALARM_LONG_PRESS:
+            // Reset to name state
+            watch_set_led_off();
+            movement_request_tick_frequency(ANIMATION_TICK_FREQ_NAME);
+            state->state = STATE_NAME;
+            state->word_index = 0;
+            state->name_count = 0;
             break;
         case EVENT_TIMEOUT:
             // Your watch face will receive this event after a period of inactivity. If it makes sense to resign,

@@ -37,14 +37,17 @@
  * Answer yes or no (buttons)
  * Easter eggs (lights, buzzer, interactions, indicators)
  * 
- * Add desired watch faces to movement_config.h
- * Run `make` from /movement/make
- * Drag and drop /movement/make/build/watch.uf2 to mounted watch drive WATCHBOOT
  */
 
+// TODO: secret access with long press of buttons (long press of Mode, then 3 short presses)
+// TODO: auto scroll of words
+// TODO: Yes/No responses (lights, animation)
+
 typedef struct {
-    uint8_t animation_frame;
-    uint8_t word_index; // 0: Vy, 1: Will, 2: You, 3: Marry, 4: Me?
+    bool proposal_response; // true: yes, false: no
+    uint8_t name_count; // specifies how many times to animate name
+    uint8_t state; // 0: name, 1: proposal, 2: response, 3: reaction
+    uint8_t word_index; // keeps track of which word to display
 } proposal_state_t;
 
 void proposal_face_setup(movement_settings_t *settings, uint8_t watch_face_index, void ** context_ptr);

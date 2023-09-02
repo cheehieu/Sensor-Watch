@@ -2,6 +2,13 @@
 
 The Proposal is a special watch face that displays "Will you marry me?" or whatever phrase you desire, triggered by a special button press combination. I designed it to surprise my girlfriend. We'll see how it goes...
 
+## Usage
+
+- https://www.sensorwatch.net/docs/firmware/flashing/
+- Add desired watch faces to movement_config.h
+- Run `make` from /movement/make
+- Drag and drop /movement/make/build/watch.uf2 to mounted watch drive WATCHBOOT
+
 ## TODOs:
 
 [ ] Design "Will you marry me?" for segment LCD using emulator (10 char limit, hide additional screens behind Light or Alarm button)
