@@ -30,7 +30,7 @@
 #define ANIMATION_TICK_FREQ_NAME 2
 #define ANIMATION_TICK_FREQ_PROPOSAL 0.5
 #define ANIMATION_TICK_FREQ_RESPONSE 2
-#define ANIMATION_TICK_FREQ_REACTION 1
+#define ANIMATION_TICK_FREQ_REACTION 2
 #define MAX_NAME_COUNT 3
 #define STATE_NAME 0
 #define STATE_PROPOSAL 1
@@ -197,16 +197,18 @@ bool proposal_face_loop(movement_event_t event, movement_settings_t *settings, v
                 case STATE_REACTION:
                     if (state->proposal_response) {
                         state->word_index = (state->word_index + 1) % NUM_WORDS_REACTION_Y;
-                        watch_set_led_green();
                     } else {
                         state->word_index = (state->word_index + 1) % NUM_WORDS_REACTION_N;
-                        watch_set_led_red();
                     }
                     _proposal_face_update_lcd(state);
 
-                    // Blink LED
-                    // TODO: trigger quick blinking like a beacon and get red to work
-                    if (state->word_index % 2 == 0) {
+                    // Blink LED every 5 frames
+                    if (state->word_index % 5 == 0) {
+                        if (state->proposal_response) {
+                            watch_set_led_green();
+                        } else {
+                            watch_set_led_red();
+                        }
                         movement_illuminate_led();
                     } else {
                         watch_set_led_off();
@@ -250,7 +252,7 @@ bool proposal_face_loop(movement_event_t event, movement_settings_t *settings, v
         case EVENT_TIMEOUT:
             // Your watch face will receive this event after a period of inactivity. If it makes sense to resign,
             // you may uncomment this line to move back to the first watch face in the list:
-            // movement_move_to_face(0);
+            movement_move_to_face(0);
             break;
         case EVENT_LOW_ENERGY_UPDATE:
             // If you did not resign in EVENT_TIMEOUT, you can use this event to update the display once a minute.
@@ -281,5 +283,5 @@ void proposal_face_resign(movement_settings_t *settings, void *context) {
     (void) context;
 
     // handle any cleanup before your watch face goes off-screen.
-    // watch_set_led_off();
+    watch_set_led_off();
 }
