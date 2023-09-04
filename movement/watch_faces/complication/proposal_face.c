@@ -140,6 +140,74 @@ static void _proposal_face_update_lcd(proposal_state_t *state) {
     }
 }
 
+// Play one-up sound effect from Mario
+void beep_happy (void) {
+        const BuzzerNote notes[] = {
+            BUZZER_NOTE_E5,
+            BUZZER_NOTE_G5,
+            BUZZER_NOTE_E6,
+            BUZZER_NOTE_C6,
+            BUZZER_NOTE_D6,
+            BUZZER_NOTE_G6,
+        };
+        const uint16_t durations[] = {
+            150,
+            150,
+            150,
+            150,
+            150,
+            150,
+        };
+        for(size_t i = 0, count = sizeof(notes) / sizeof(notes[0]); i < count; i++) {
+            watch_buzzer_play_note(notes[i], durations[i]);
+        }
+}
+
+// Play death sound effect from Mario
+void beep_sad (void) {
+        const BuzzerNote notes[] = {
+            BUZZER_NOTE_C5,
+            BUZZER_NOTE_C5SHARP_D5FLAT,
+            BUZZER_NOTE_D5,
+            BUZZER_NOTE_REST,
+            BUZZER_NOTE_B4,
+            BUZZER_NOTE_F5,
+            BUZZER_NOTE_REST,
+            BUZZER_NOTE_F5,
+            BUZZER_NOTE_REST,
+            BUZZER_NOTE_F5,
+            BUZZER_NOTE_E5,
+            BUZZER_NOTE_D5,
+            BUZZER_NOTE_C5,
+            BUZZER_NOTE_E4,
+            BUZZER_NOTE_REST,
+            BUZZER_NOTE_E4,
+            BUZZER_NOTE_C4,
+        };
+        const uint16_t durations[] = {
+            40,
+            40,
+            80,
+            600,
+            150,
+            150,
+            150,
+            150,
+            25,
+            250,
+            250,
+            250,
+            150,
+            150,
+            150,
+            150,
+            150,
+        };
+        for(size_t i = 0, count = sizeof(notes) / sizeof(notes[0]); i < count; i++) {
+            watch_buzzer_play_note(notes[i], durations[i]);
+        }
+}
+
 bool proposal_face_loop(movement_event_t event, movement_settings_t *settings, void *context) {
     proposal_state_t *state = (proposal_state_t *)context;
 
@@ -206,10 +274,13 @@ bool proposal_face_loop(movement_event_t event, movement_settings_t *settings, v
                     if (state->word_index % 5 == 0) {
                         if (state->proposal_response) {
                             watch_set_led_green();
+                            movement_illuminate_led();
+                            beep_happy();
                         } else {
                             watch_set_led_red();
+                            movement_illuminate_led();
+                            beep_sad();
                         }
-                        movement_illuminate_led();
                     } else {
                         watch_set_led_off();
                     }
